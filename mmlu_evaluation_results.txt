@@ -1,0 +1,6 @@
+Ordering 1: Accuracy = 0.74
+Ordering 2: Accuracy = 0.78
+Ordering 3: Accuracy = 0.82
+Ordering 4: Accuracy = 0.68
+Ordering 5: Accuracy = 0.76
+Ordering 6: Accuracy = 0.8
