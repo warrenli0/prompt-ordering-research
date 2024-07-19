@@ -1,0 +1,440 @@
+Ordering 0:
+Prompt: Classify the sentiment of the following sentences as either positive or negative.
+
+Sentence: , like life , is n't much fun without the highs and lows 
+Sentiment: positive
+
+Sentence: it 's about issues most adults have to face in marriage and i think that 's what i liked about it -- the real issues tucked between the silly and crude storyline 
+Sentiment: positive
+
+Sentence: equals the original and in some ways even betters it 
+Sentiment: positive
+
+Sentence: that 's far too tragic to merit such superficial treatment 
+Sentiment: negative
+
+Sentence: , generous and subversive artworks 
+Sentiment: positive
+
+Sentence: cold movie 
+Sentiment: negative
+
+Sentence: it does n't follow the stale , standard , connect-the-dots storyline which has become commonplace in movies that explore the seamy underbelly of the criminal world 
+Sentiment: positive
+
+Sentence: many pointless 
+Sentiment: negative
+
+Classify this sentence:
+Sentence: the movie fails to live up to the sum of its parts . 
+Sentiment:
+Q: 
+Generated A:0
+Correct A: 0
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 0
+Is Correct: False
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Ordering 1:
+Prompt: Classify the sentiment of the following sentences as either positive or negative.
+
+Sentence: it 's about issues most adults have to face in marriage and i think that 's what i liked about it -- the real issues tucked between the silly and crude storyline 
+Sentiment: positive
+
+Sentence: , like life , is n't much fun without the highs and lows 
+Sentiment: positive
+
+Sentence: equals the original and in some ways even betters it 
+Sentiment: positive
+
+Sentence: that 's far too tragic to merit such superficial treatment 
+Sentiment: negative
+
+Sentence: , generous and subversive artworks 
+Sentiment: positive
+
+Sentence: cold movie 
+Sentiment: negative
+
+Sentence: it does n't follow the stale , standard , connect-the-dots storyline which has become commonplace in movies that explore the seamy underbelly of the criminal world 
+Sentiment: positive
+
+Sentence: many pointless 
+Sentiment: negative
+
+Classify this sentence:
+Sentence: the movie fails to live up to the sum of its parts . 
+Sentiment:
+Q: 
+Generated A:0
+Correct A: 0
+Is Correct: True
+
+Q: 
+Generated A:0
+Correct A: 0
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Ordering 2:
+Prompt: Classify the sentiment of the following sentences as either positive or negative.
+
+Sentence: equals the original and in some ways even betters it 
+Sentiment: positive
+
+Sentence: it 's about issues most adults have to face in marriage and i think that 's what i liked about it -- the real issues tucked between the silly and crude storyline 
+Sentiment: positive
+
+Sentence: , like life , is n't much fun without the highs and lows 
+Sentiment: positive
+
+Sentence: that 's far too tragic to merit such superficial treatment 
+Sentiment: negative
+
+Sentence: , generous and subversive artworks 
+Sentiment: positive
+
+Sentence: cold movie 
+Sentiment: negative
+
+Sentence: it does n't follow the stale , standard , connect-the-dots storyline which has become commonplace in movies that explore the seamy underbelly of the criminal world 
+Sentiment: positive
+
+Sentence: many pointless 
+Sentiment: negative
+
+Classify this sentence:
+Sentence: the movie fails to live up to the sum of its parts . 
+Sentiment:
+Q: 
+Generated A:0
+Correct A: 0
+Is Correct: True
+
+Q: 
+Generated A:0
+Correct A: 0
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Ordering 3:
+Prompt: Classify the sentiment of the following sentences as either positive or negative.
+
+Sentence: that 's far too tragic to merit such superficial treatment 
+Sentiment: negative
+
+Sentence: it 's about issues most adults have to face in marriage and i think that 's what i liked about it -- the real issues tucked between the silly and crude storyline 
+Sentiment: positive
+
+Sentence: equals the original and in some ways even betters it 
+Sentiment: positive
+
+Sentence: , like life , is n't much fun without the highs and lows 
+Sentiment: positive
+
+Sentence: , generous and subversive artworks 
+Sentiment: positive
+
+Sentence: cold movie 
+Sentiment: negative
+
+Sentence: it does n't follow the stale , standard , connect-the-dots storyline which has become commonplace in movies that explore the seamy underbelly of the criminal world 
+Sentiment: positive
+
+Sentence: many pointless 
+Sentiment: negative
+
+Classify this sentence:
+Sentence: the movie fails to live up to the sum of its parts . 
+Sentiment:
+Q: 
+Generated A:0
+Correct A: 0
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 0
+Is Correct: False
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Ordering 4:
+Prompt: Classify the sentiment of the following sentences as either positive or negative.
+
+Sentence: , generous and subversive artworks 
+Sentiment: positive
+
+Sentence: it 's about issues most adults have to face in marriage and i think that 's what i liked about it -- the real issues tucked between the silly and crude storyline 
+Sentiment: positive
+
+Sentence: equals the original and in some ways even betters it 
+Sentiment: positive
+
+Sentence: that 's far too tragic to merit such superficial treatment 
+Sentiment: negative
+
+Sentence: , like life , is n't much fun without the highs and lows 
+Sentiment: positive
+
+Sentence: cold movie 
+Sentiment: negative
+
+Sentence: it does n't follow the stale , standard , connect-the-dots storyline which has become commonplace in movies that explore the seamy underbelly of the criminal world 
+Sentiment: positive
+
+Sentence: many pointless 
+Sentiment: negative
+
+Classify this sentence:
+Sentence: the movie fails to live up to the sum of its parts . 
+Sentiment:
+Q: 
+Generated A:0
+Correct A: 0
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 0
+Is Correct: False
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Ordering 5:
+Prompt: Classify the sentiment of the following sentences as either positive or negative.
+
+Sentence: cold movie 
+Sentiment: negative
+
+Sentence: it 's about issues most adults have to face in marriage and i think that 's what i liked about it -- the real issues tucked between the silly and crude storyline 
+Sentiment: positive
+
+Sentence: equals the original and in some ways even betters it 
+Sentiment: positive
+
+Sentence: that 's far too tragic to merit such superficial treatment 
+Sentiment: negative
+
+Sentence: , generous and subversive artworks 
+Sentiment: positive
+
+Sentence: , like life , is n't much fun without the highs and lows 
+Sentiment: positive
+
+Sentence: it does n't follow the stale , standard , connect-the-dots storyline which has become commonplace in movies that explore the seamy underbelly of the criminal world 
+Sentiment: positive
+
+Sentence: many pointless 
+Sentiment: negative
+
+Classify this sentence:
+Sentence: the movie fails to live up to the sum of its parts . 
+Sentiment:
+Q: 
+Generated A:1
+Correct A: 0
+Is Correct: False
+
+Q: 
+Generated A:1
+Correct A: 0
+Is Correct: False
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Ordering 6:
+Prompt: Classify the sentiment of the following sentences as either positive or negative.
+
+Sentence: it does n't follow the stale , standard , connect-the-dots storyline which has become commonplace in movies that explore the seamy underbelly of the criminal world 
+Sentiment: positive
+
+Sentence: it 's about issues most adults have to face in marriage and i think that 's what i liked about it -- the real issues tucked between the silly and crude storyline 
+Sentiment: positive
+
+Sentence: equals the original and in some ways even betters it 
+Sentiment: positive
+
+Sentence: that 's far too tragic to merit such superficial treatment 
+Sentiment: negative
+
+Sentence: , generous and subversive artworks 
+Sentiment: positive
+
+Sentence: cold movie 
+Sentiment: negative
+
+Sentence: , like life , is n't much fun without the highs and lows 
+Sentiment: positive
+
+Sentence: many pointless 
+Sentiment: negative
+
+Classify this sentence:
+Sentence: the movie fails to live up to the sum of its parts . 
+Sentiment:
+Q: 
+Generated A:0
+Correct A: 0
+Is Correct: True
+
+Q: 
+Generated A:0
+Correct A: 0
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Ordering 7:
+Prompt: Classify the sentiment of the following sentences as either positive or negative.
+
+Sentence: many pointless 
+Sentiment: negative
+
+Sentence: it 's about issues most adults have to face in marriage and i think that 's what i liked about it -- the real issues tucked between the silly and crude storyline 
+Sentiment: positive
+
+Sentence: equals the original and in some ways even betters it 
+Sentiment: positive
+
+Sentence: that 's far too tragic to merit such superficial treatment 
+Sentiment: negative
+
+Sentence: , generous and subversive artworks 
+Sentiment: positive
+
+Sentence: cold movie 
+Sentiment: negative
+
+Sentence: it does n't follow the stale , standard , connect-the-dots storyline which has become commonplace in movies that explore the seamy underbelly of the criminal world 
+Sentiment: positive
+
+Sentence: , like life , is n't much fun without the highs and lows 
+Sentiment: positive
+
+Classify this sentence:
+Sentence: the movie fails to live up to the sum of its parts . 
+Sentiment:
+Q: 
+Generated A:0
+Correct A: 0
+Is Correct: True
+
+Q: 
+Generated A:0
+Correct A: 0
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
+Q: 
+Generated A:1
+Correct A: 1
+Is Correct: True
+
