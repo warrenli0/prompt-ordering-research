@@ -1,233 +1,162 @@
-import random
-import re
-from datasets import load_dataset
-from tqdm import tqdm
-from vllm import LLM, SamplingParams
-from huggingface_hub import login
+import os
 import pandas as pd
-
-def setup_model(model_name, token):
-    login(token=token)
-    llm = LLM(model=model_name, gpu_memory_utilization=0.9, enforce_eager=True)
-    return llm
-
-def load_dataset_by_name(dataset_name, num_samples):
-    if dataset_name == 'gsm8k':
-        dataset = load_dataset('gsm8k', 'main')
-        train_set = dataset['train'].select(range(num_samples))
-        test_set = dataset['test'].select(range(num_samples))
-    elif dataset_name == 'bbh':
-        dataset = load_dataset('lukaemon/bbh', 'boolean_expressions')
-        train_set = dataset['test'].select(range(num_samples)) # Has no train set
-        test_set = dataset['test'].select(range(num_samples))
-    elif dataset_name == 'mmlu':
-        dataset = load_dataset('cais/mmlu', 'all', trust_remote_code=True)
-        train_set = dataset['auxiliary_train'].select(range(num_samples))
-        test_set = dataset['test'].select(range(num_samples))
-    elif dataset_name == 'ag_news':
-        dataset = load_dataset('fancyzhx/ag_news', 'default', trust_remote_code=True)
-        train_set = dataset['train']
-        test_set = dataset['test']
-    elif dataset_name == 'sst2':
-        dataset = load_dataset('stanfordnlp/sst2', 'default', trust_remote_code=True)
-        train_set = dataset['train'].select(range(num_samples))
-        test_set = dataset['validation'].select(range(num_samples))
-    elif dataset_name == 'dbpedia':
-        dataset = load_dataset('fancyzhx/dbpedia_14', 'dbpedia_14', trust_remote_code=True)
-        train_set = dataset['train']
-        test_set = dataset['test']
-    else:
-        raise ValueError("Unsupported dataset name")
-    return train_set, test_set
-
-def create_prompt_gsm8k(example, in_context_examples):
-    prompt = "Given the answer to the following questions:"
-    for ex in in_context_examples:
-        prompt += f"Q: {ex['question']}\nA: {ex['answer']}\n\n"
-    prompt += "Answer to the following question:\n"
-    prompt += f"Q: {example['question']}\nA: "
-    return prompt
-
-def create_prompt_bbh(example, in_context_examples):
-    prompt = ""
-    for ex in in_context_examples:
-        prompt += f"Q: {ex['input']}\nA: {ex['target']}\n\n"
-    prompt += "Give me the answer for the following question:\n"
-    prompt += f"Q: {example['input']}\nA: "
-    return prompt
-
-def create_prompt_mmlu(example, in_context_examples):
-    prompt = "Given are the answer for the following questions as an index from 0 to 3 for the given choices:\n"
-    for ex in in_context_examples:
-        prompt += f"Q: {ex['question']}\nChoices: {ex['choices']}\nA: {ex['answer']}\n\n"
-    prompt += "Now answer this question:\n"
-    prompt += f"Q: {example['question']}\nChoices: {example['choices']}\nA: "
-    return prompt
-
-def create_prompt_agnews(example, in_context_examples):
-    prompt = "Classify the news articles into the categories of World, Sports, Business, and Technology.\n\n"
-    d = {0: ['World'], 1: ['Sports'], 2: ['Business'], 3: ['Technology', 'Science']}
-    for ex in in_context_examples:
-        prompt += f"Article: {ex['text']}\nAnswer: {d[ex['label']][0]}\n\n"
-    prompt += "Classify this text:\n"
-    prompt += f"Article: {example['text']}\nAnswer:"
-    return prompt
-
-def create_prompt_sst2(example, in_context_examples):
-    prompt = "Classify the sentiment of the following sentences as either positive or negative.\n\n"
-    sentiment_dict = {0: 'negative', 1: 'positive'}
-    for ex in in_context_examples:
-        prompt += f"Sentence: {ex['sentence']}\nSentiment: {sentiment_dict[ex['label']]}\n\n"
-    prompt += "Classify this sentence:\n"
-    prompt += f"Sentence: {example['sentence']}\nSentiment:"
-    return prompt
-
-def create_prompt_dbpedia(example, in_context_examples):
-    prompt = "Classify the documents based on whether they are about a Company, School, Artist, Athlete, Politician, Transportation, Building, Nature, Village, Animal, Plant, Album, Film, or Book.\n\n"
-    label_dict = {0: ['Company'], 1: ['School'], 2: ['Artist'], 3: ['Athlete'], 4: ['Politician'], 5: ['Transportation'], 6: ['Building'], 7: ['Nature'], 8: ['Village'], 9: ['Animal'], 10: ['Plant'], 11: ['Album'], 12: ['Film'], 13: ['Book']}
-    for ex in in_context_examples:
-        prompt += f"Article: {ex['content']}\nCategory: {label_dict[ex['label']][0]}\n\n"
-    prompt += "Classify this article:\n"
-    prompt += f"Article: {example['content']}\nCategory:"
-    return prompt
-
-def evaluate_model(llm, dataset_name, dataset, in_context_examples, create_prompt_fn, max_length=256, output_file=None):
-    correct = 0
-    total = 0
-    correctness = []
-
-    prompts = [create_prompt_fn(example, in_context_examples) for example in dataset]
-    sampling_params = SamplingParams(max_tokens=1, temperature=0)
-    outputs = llm.generate(prompts, sampling_params=sampling_params)
-
-    for idx, example in enumerate(dataset):
-        generated_text = outputs[idx].outputs[0].text
-
-        if dataset_name == 'bbh':
-            correct_answer = example["target"].strip()
-        elif dataset_name == 'mmlu':
-            correct_answer = str(example["answer"])
-        elif dataset_name == 'ag_news':
-            inv = {'World': 0, 'Sports': 1, 'Business': 2, 'Technology': 3, 'Science': 3}
-            correct_answer = str(example["label"])
-            generated_text = str(inv[generated_text.strip()])
-        elif dataset_name == 'sst2':
-            inv = {'negative': 0, 'positive': 1}
-            correct_answer = str(example["label"])
-            generated_text = str(inv[generated_text.strip()])
-        elif dataset_name == 'dbpedia':
-            inv = {'Company': 0, 'School': 1, 'Artist': 2, 'Athlete': 3, 'Politician': 4, 'Transportation': 5, 'Building': 6, 'Nature': 7, 'Village': 8, 'Animal': 9, 'Plant': 10, 'Album': 11, 'Film': 12, 'Book': 13}
-            # inv = {
-            #     'Company': 0, 'EducationalInstitution': 1, 'Artist': 2, 'Athlete': 3, 'OfficeHolder': 4, 
-            #     'MeanOfTransportation': 5, 'Building': 6, 'NaturalPlace': 7, 'Village': 8, 'Animal:': 9, 
-            #     'Plant': 10, 'Album': 11, 'Film': 12, 'WrittenWork': 13
-            # }
-            correct_answer = str(example["label"])
-            generated_text = str(inv.get(generated_text.strip(), -1))
-        else:
-            correct_answer = example["answer"].split('####')[-1].strip()
-
-        is_correct = correct_answer in generated_text
-        correctness.append(is_correct)
-
-        total += 1
-        if is_correct:
-            correct += 1
-
-        if output_file and idx < 5:
-            if idx == 0: output_file.write(f"Prompt: {prompts[idx]}\n")
-            output_file.write(f"Q: {example.get('text', example.get('input', ''))}\n")
-            output_file.write(f"Generated A:{generated_text}\n")
-            output_file.write(f"Correct A: {correct_answer}\n")
-            output_file.write(f"Is Correct: {is_correct}\n")
-            output_file.write("\n")
-
-    accuracy = correct / total
-    return accuracy, correctness
-
-def extract_answer(generated_text):
-    match = re.search(r'(\d+)', generated_text)
-    return match.group(1) if match else None
-
-def generate_random_orderings(data, num_orderings=10):
-    orderings = []
-    for _ in range(num_orderings):
-        order = list(range(len(data)))
-        random.shuffle(order)
-        shuffled_order = [order.index(i) for i in range(len(data))]
-        orderings.append((order, shuffled_order))
-    return orderings
-
-def reorder_list(original_list, ordering):
-    shuffled_list = [None] * len(original_list)
-    for idx, new_idx in enumerate(ordering):
-        shuffled_list[new_idx] = original_list[idx]
-    return shuffled_list
-
-# Swap first example with every other example
-def generate_swap_orderings(data):
-    orderings = []
-    n = len(data)
-    for i in range(n):
-        if i == 0:
-            orderings.append((list(range(n)), list(range(n))))
-        else:
-            new_order = list(range(n))
-            new_order[0], new_order[i] = new_order[i], new_order[0]
-            shuffled_order = [new_order.index(j) for j in range(n)]
-            orderings.append((new_order, shuffled_order))
-    return orderings
+import numpy as np
+from model_setup import setup_model
+from data_loader import load_dataset_by_name, load_text_file, select_in_context_examples
+from prompt_creators import create_prompt_gsm8k, create_prompt_bbh, create_prompt_mmlu, create_prompt_agnews, create_prompt_sst2, create_prompt_dbpedia, create_prompt_custom
+from evaluator import evaluate_model
+from utils import shuffle_within_label, randomize_label_order, reorder_list
 
 # Configuration
-# model_name = "meta-llama/Meta-Llama-3-8B-Instruct"  # Change to "meta-llama/Llama-2-13b-hf" as needed
-model_name = "gpt2-xl"
+model_name = "google/gemma-2b"  # Use gemma2b more
 token = "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"
-dataset_name = "ag_news"  # "gsm8k" "lukaemon/bbh" or "cais/mmlu" as needed
-num_samples = 100
+
+# Dataset configuration
+dataset_name = "dbpedia"  # "gsm8k", "lukaemon/bbh", "cais/mmlu", "ag_news", "sst2", or "dbpedia"
+num_samples = 500
+num_runs = 5
+multiples = [2]  # List of multiples of the number of classes for in-context examples
+num_test_examples = 200
+num_orderings = 10
+shuffle_seed = 42  # Seed for shuffling
 
 # Setup
 llm = setup_model(model_name, token)
-train_set, test_set = load_dataset_by_name(dataset_name, num_samples)
-train_set = train_set.shuffle()
-test_set = test_set.shuffle()
 
-# Select in-context examples from training data and test data from the test set
-in_context_data = train_set.select(range(8)) # Can use more examples for ag_news
-test_data = test_set.select(range(50))
+# Load test set once
+train_set, test_set, num_classes = load_dataset_by_name(dataset_name, num_samples)
+test_set = test_set.shuffle(seed=42)
+test_data = test_set.select(range(num_test_examples))
 
-# Create random orderings
-random_orderings = generate_random_orderings(in_context_data, num_orderings=10)
-swap_orderings = generate_swap_orderings(in_context_data)
+# Output paths
+results_dir = os.path.join('outputs', 'results')
+generated_text_dir = os.path.join('outputs', 'generated_text')
+tables_dir = os.path.join('outputs', 'tables')
+summary_dir = os.path.join('outputs', 'summary')  # New directory for summary files
+ordering_variance_dir = os.path.join('outputs', 'variance_comparison')  # Directory for new table
+os.makedirs(results_dir, exist_ok=True)
+os.makedirs(generated_text_dir, exist_ok=True)
+os.makedirs(tables_dir, exist_ok=True)
+os.makedirs(summary_dir, exist_ok=True)  # Create the summary directory
+os.makedirs(ordering_variance_dir, exist_ok=True)  # Create the ordering variance directory
 
-# Evaluate and write results
-results = []
-correctness_dict = {}
-with open(f"{dataset_name}_evaluation_results.txt", "w") as f, open(f"{dataset_name}_outputs.txt", "w") as output_file:
-    for i, (ordering, shuffled_order) in enumerate(swap_orderings): # or random_orderings
-        ordered_examples = [in_context_data[idx] for idx in ordering]
-        if dataset_name == 'gsm8k':
-            create_prompt_fn = create_prompt_gsm8k
-        elif dataset_name == 'bbh':
-            create_prompt_fn = create_prompt_bbh
-        elif dataset_name == 'mmlu':
-            create_prompt_fn = create_prompt_mmlu
-        elif dataset_name == 'ag_news':
-            create_prompt_fn = create_prompt_agnews
-        elif dataset_name == 'sst2':
-            create_prompt_fn = create_prompt_sst2
-        elif dataset_name == 'dbpedia':
-            create_prompt_fn = create_prompt_dbpedia
+# Load label names if using custom datasets
+label_names = None
+if dataset_name in ['nyt-topics', 'nyt-locations']:
+    base_path = os.path.join('data', dataset_name.replace('nyt', 'NYT'))
+    label_names = load_text_file(os.path.join(base_path, 'label_names.txt'))
 
-        output_file.write(f"Ordering {i}:\n")
-        accuracy, correctness = evaluate_model(llm, dataset_name, test_data, ordered_examples, create_prompt_fn, output_file=output_file)
-        results.append(accuracy)
-        correctness_dict[i] = correctness
-        f.write(f"Ordering {i+1}: Accuracy = {accuracy}\n")
-        f.write(f"Shuffled Order: {shuffled_order}\n\n")
-        print(f"Ordering {i+1}: Accuracy = {accuracy}")
+# Iterate over each multiple
+for multiple in multiples:
+    # Calculate the number of in-context examples for the current multiple
+    num_incontext_examples = num_classes * multiple
 
-for i, accuracy in enumerate(results):
-    print(f"Ordering {i+1}: Accuracy = {accuracy}")
+    # Initialize results containers for this multiple
+    all_run_accuracies = []
+    all_run_stddevs = []
+    accuracy_table = np.zeros((num_runs, num_orderings))
 
-correctness_df = pd.DataFrame(correctness_dict)
-correctness_df.to_csv(f"{dataset_name}_correctness_comparison.csv", index=False)
+    # Evaluate for each run
+    for run in range(num_runs):
+        train_set, _, _ = load_dataset_by_name(dataset_name, num_samples)
+        train_set = train_set.shuffle(seed=run)
+        in_context_data = select_in_context_examples(train_set, num_classes, num_incontext_examples)
+
+        # Sort data by label and within each label, sort alphabetically by text
+        in_context_data = sorted(in_context_data, key=lambda x: (x['label'], x['text']))
+
+        # Shuffle within each label (deterministic using a seed)
+        in_context_data = shuffle_within_label(in_context_data, seed=shuffle_seed)
+
+        # Optionally shuffle the order of labels (deterministic using a seed)
+        in_context_data = randomize_label_order(in_context_data, seed=shuffle_seed)
+
+        # Generate the orderings using the shuffled data
+        orderings = [list(range(len(in_context_data)))] * num_orderings
+        for i in range(num_orderings):
+            shuffled_data = shuffle_within_label(in_context_data, seed=shuffle_seed + i)
+            orderings[i] = list(range(len(shuffled_data)))
+
+        run_results = []
+        run_correctness_dict = {}
+
+        results_file = os.path.join(results_dir, f"{dataset_name}_evaluation_results_run_{run+1}_incontext_{num_incontext_examples}.txt")
+        outputs_file = os.path.join(generated_text_dir, f"{dataset_name}_outputs_run_{run+1}_incontext_{num_incontext_examples}.txt")
+
+        with open(results_file, "w") as f, open(outputs_file, "w") as output_file:
+            f.write(f"Model Name: {model_name}\n")  # Include model name in the results file
+            output_file.write(f"Model Name: {model_name}\n")  # Include model name in the outputs file
+
+            for i, ordering in enumerate(orderings):
+                ordered_examples = reorder_list(in_context_data, ordering)
+                if dataset_name == 'gsm8k':
+                    create_prompt_fn = create_prompt_gsm8k
+                elif dataset_name == 'bbh':
+                    create_prompt_fn = create_prompt_bbh
+                elif dataset_name == 'mmlu':
+                    create_prompt_fn = create_prompt_mmlu
+                elif dataset_name == 'ag_news':
+                    create_prompt_fn = create_prompt_agnews
+                elif dataset_name == 'sst2':
+                    create_prompt_fn = create_prompt_sst2
+                elif dataset_name == 'dbpedia':
+                    create_prompt_fn = create_prompt_dbpedia
+                elif dataset_name in ['nyt-topics', 'nyt-locations']:
+                    create_prompt_fn = create_prompt_custom
+
+                output_file.write(f"Ordering {i}:\n")
+                accuracy, correctness = evaluate_model(llm, dataset_name, test_data, ordered_examples, create_prompt_fn, label_names, output_file=output_file)
+                run_results.append(accuracy)
+                run_correctness_dict[i] = correctness
+                accuracy_table[run, i] = accuracy  # Store accuracy in the table
+                f.write(f"Ordering {i+1}: Accuracy = {accuracy}\n")
+                f.write(f"Shuffled Order: {ordering}\n\n")
+                print(f"Run {run+1}, Ordering {i+1}: Accuracy = {accuracy}")
+
+        average_run_accuracy = np.mean(run_results)
+        stddev_run_accuracy = np.std(run_results)
+        all_run_accuracies.append(average_run_accuracy)
+        all_run_stddevs.append(stddev_run_accuracy)
+
+    # Compute row-wise and column-wise averages and standard deviations
+    row_wise_avg = np.mean(accuracy_table, axis=1)
+    row_wise_std = np.std(accuracy_table, axis=1)
+    col_wise_avg = np.mean(accuracy_table, axis=0)
+    col_wise_std = np.std(accuracy_table, axis=0)
+
+    # Write the accuracy table with row-wise and column-wise statistics
+    table_file = os.path.join(ordering_variance_dir, f"{dataset_name}_accuracy_table_incontext_{num_incontext_examples}.csv")
+    table_summary_file = os.path.join(ordering_variance_dir, f"{dataset_name}_accuracy_summary_incontext_{num_incontext_examples}.txt")
+
+    accuracy_df = pd.DataFrame(accuracy_table, columns=[f"Ordering {i+1}" for i in range(num_orderings)])
+    accuracy_df['Row-wise Avg'] = row_wise_avg
+    accuracy_df['Row-wise Std'] = row_wise_std
+    accuracy_df.loc['Column-wise Avg'] = np.append(col_wise_avg, [np.nan, np.nan])
+    accuracy_df.loc['Column-wise Std'] = np.append(col_wise_std, [np.nan, np.nan])
+
+    accuracy_df.to_csv(table_file, index_label='Run')
+
+    # Write the row-wise and column-wise averages and standard deviations to a summary file
+    with open(table_summary_file, "w") as f:
+        f.write(f"Model Name: {model_name}\n")
+        f.write(f"Multiple: {multiple}\n")
+        f.write("Row-wise Averages and Standard Deviations (Run-wise comparison):\n")
+        for i, (avg, std) in enumerate(zip(row_wise_avg, row_wise_std)):
+            f.write(f"Run {i+1}: Average = {avg}, Std Dev = {std}\n")
+
+        f.write("\nColumn-wise Averages and Standard Deviations (Ordering-wise comparison):\n")
+        for i, (avg, std) in enumerate(zip(col_wise_avg, col_wise_std)):
+            f.write(f"Ordering {i+1}: Average = {avg}, Std Dev = {std}\n")
+
+    # Write average accuracy and standard deviation of each run to a summary file
+    summary_file = os.path.join(summary_dir, f"{dataset_name}_summary_incontext_{num_incontext_examples}.txt")
+    with open(summary_file, "w") as f:
+        f.write(f"Model Name: {model_name}\n")
+        f.write(f"Multiple: {multiple}\n")
+        for run, (avg_accuracy, stddev_accuracy) in enumerate(zip(all_run_accuracies, all_run_stddevs), start=1):
+            f.write(f"Run {run}: Average Accuracy = {avg_accuracy}, Std Dev = {stddev_accuracy}\n")
+
+    # Save detailed correctness results
+    for run in range(num_runs):
+        correctness_df = pd.DataFrame(run_correctness_dict)
+        correctness_df.to_csv(os.path.join(tables_dir, f"{dataset_name}_correctness_comparison_run_{run+1}_incontext_{num_incontext_examples}.csv"), index=False)
