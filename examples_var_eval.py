@@ -69,7 +69,7 @@ for dataset_name in dataset_list:
             random.seed(run + shuffle_seed)
 
              # Dynamically sample in-context examples during each run
-            in_context_data = select_in_context_examples_multiple(sampled_data, num_classes, num_incontext_examples, seed=run + shuffle_seed)
+            in_context_data = select_in_context_examples_multiple(sampled_data, num_classes, num_incontext_examples, dataset_name, seed=run + shuffle_seed)
 
             # Sort by label and within each label alphabetically by text
             in_context_data = sorted(in_context_data, key=lambda x: (x['label'], get_text_key(x)))

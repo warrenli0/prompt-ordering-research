@@ -9,13 +9,15 @@ from data_loader import load_dataset_by_name, prefilter_and_sample_examples_mult
 from prompt_creators import get_prompt_creator
 from evaluator import evaluate_model, evaluate_it_model
 from utils import reorder_list, generate_random_orderings
+from collections import Counter
 
 # Configuration
 model_names = ["google/gemma-2b", "google/gemma-7b", "google/gemma-2-2b", "google/gemma-2-9b"]
 token = "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"
-dataset_list = ["gsm8k"] # "nyt-topics", "nyt-locations", "sst2", "ag_news", "dbpedia", "mmlu"
-num_samples = 5000
-num_test_examples = 500
+dataset_list = ["nyt-topics", "nyt-locations", "sst2", "ag_news", "dbpedia", "mmlu"]
+output_folder = "outputs/any_correct"
+num_samples = 10000
+num_test_examples = 1000
 num_runs_per_set = 10  # We now evaluate each set 10 times
 num_sets = 10  # Total of 10 different sets of in-context examples
 multiples = [2]  # 2 examples per label
@@ -68,91 +70,97 @@ def evaluate(model_name):
         create_prompt_fn = get_prompt_creator(dataset_name, is_instruction_tuned=is_instruction_tuned, label_names=label_names)
 
         # Create output directories
-        output_dirs = [
-            f'outputs_new/{model_name}/results/order_to_example', 
-            f'outputs_new/{model_name}/boxplots', 
-            f'outputs_new/{model_name}/frequency_graphs',
-            f'outputs_new/{model_name}/generated'
-        ]
+        output_dirs = [f'{output_folder}/{model_name}/results', f'{output_folder}/{model_name}/boxplots', f'{output_folder}/{model_name}/frequency_graphs']
         for dir_name in output_dirs:
             os.makedirs(dir_name, exist_ok=True)
 
         # Initialize containers for storing results
         all_accuracies = []
-        ordering_accuracies = {perm_run: [] for perm_run in range(num_runs_per_set)}  # Store accuracy per ordering
+        ordering_accuracies = {}
+        all_any_accuracies = []
 
         # Iterate over each multiple
         for multiple in multiples:
             num_incontext_examples = num_classes * multiple
 
-            # Generate 10 random permutations for this multiple
-            orderings = generate_random_orderings([0] * num_incontext_examples, num_orderings=num_runs_per_set)
+            # Generate 10 random permutations for all sets
+            # orderings = generate_random_orderings([0] * num_incontext_examples, num_orderings=num_runs_per_set)
 
             # Generate the 10 random sets of in-context examples only once
-            # in_context_sets = []
-            # for set_run in range(num_sets):
-            #     in_context_data = select_in_context_examples_multiple(sampled_data, num_classes, num_incontext_examples, seed=set_run + shuffle_seed)
-            #     in_context_data = sorted(in_context_data, key=lambda x: (x['label'], get_text_key(x)))
-            #     in_context_sets.append(in_context_data)  # Store each set
+            in_context_sets = []
+            for set_run in range(num_sets):
+                in_context_data = select_in_context_examples_multiple(sampled_data, num_classes, num_incontext_examples, dataset_name, seed=set_run + shuffle_seed)
+                in_context_data = sorted(in_context_data, key=lambda x: (x[label_key], get_text_key(x)))
+                in_context_sets.append(in_context_data)  # Store each set
 
-            # Iterate over each ordering first
-            for perm_run in range(num_runs_per_set):
-                permuted_accuracies = []  # Accuracies for this specific ordering across all sets
+            # Generate 10 different sets of in-context examples
+            for set_run in tqdm(range(num_sets)):
+                prompt_labels = {i: [] for i in range(num_test_examples)}
 
-                # Now iterate over the 10 different sets of in-context examples
-                for set_run in tqdm(range(num_sets)):
-                    # Dynamically sample in-context examples for this set
-                    in_context_data = select_in_context_examples_multiple(sampled_data, num_classes, num_incontext_examples, dataset_name, seed=set_run + shuffle_seed)
-                    # in_context_data = in_context_sets[set_run]
+                # Dynamically sample in-context examples for this set
+                in_context_data = in_context_sets[set_run]
 
-                    # Sort by label and within each label alphabetically by text
-                    in_context_data = sorted(in_context_data, key=lambda x: (x[label_key], get_text_key(x)))
+                # Sort by label and within each label alphabetically by text
+                in_context_data = sorted(in_context_data, key=lambda x: (x[label_key], get_text_key(x)))
 
+                # Generate 10 unique orderings per in-context example set
+                orderings = generate_random_orderings([0] * num_incontext_examples, num_orderings=num_runs_per_set)
+
+                # Evaluate this set using each of the 10 permutations
+                for perm_run in range(num_runs_per_set):
                     # Apply the permutation
                     permuted_in_context_data = reorder_list(in_context_data, orderings[perm_run])
 
-                    results_path = f'outputs_new/{model_name}/generated/example_to_order/{dataset_name}_set{set_run}_perm{perm_run}_detailed_results.csv'
+                    results_path = f'{output_folder}/{model_name}/generated/{dataset_name}_set{set_run}_perm{perm_run}_detailed_results.csv'
 
                     # Evaluate the model
                     accuracy = 0
+                    predicted_labels = []
                     if is_instruction_tuned:
                         accuracy, _, _ = evaluate_it_model(llm, dataset_name, test_data, permuted_in_context_data, create_prompt_fn, label_names, results_path=results_path)
                     else:
-                        accuracy, _, _ = evaluate_model(llm, dataset_name, test_data, permuted_in_context_data, create_prompt_fn, label_names, results_path=results_path)
-                    permuted_accuracies.append(accuracy)
+                        accuracy, _, predicted_labels = evaluate_model(llm, dataset_name, test_data, permuted_in_context_data, create_prompt_fn, label_names, results_path=results_path)
+                    all_accuracies.append(accuracy)
 
-                    # Store the results by ordering
-                    ordering_accuracies[perm_run].append(accuracy)
+                    for idx, label in enumerate(predicted_labels):
+                        prompt_labels[idx].append(label)
 
-                # Add the accuracies for this permutation to the overall list
-                all_accuracies.extend(permuted_accuracies)
+                    # Store the results by set, then permutation
+                    ordering_accuracies.setdefault(set_run, []).append(accuracy)
+                
+                # Calculate accuracy based on if any permutation got the correct label
+                correct_any_votes = 0
+                for idx in range(num_test_examples):
+                    predicted_labels_for_example = prompt_labels[idx]
+                    true_label = str(test_data[idx][label_key])
+                    if true_label in predicted_labels_for_example:
+                        correct_any_votes += 1
 
-        # Prepare the CSV data: columns 0-9 for the first ordering, 10-19 for the second ordering, etc.
-        flattened_accuracies = []
-        for perm_run in range(num_runs_per_set):
-            flattened_accuracies.extend(ordering_accuracies[perm_run])
+                # Store accuracy for this set
+                any_correct_accuracy = correct_any_votes / num_test_examples
+                all_any_accuracies.append(any_correct_accuracy)
 
         # Output the CSV with 2 rows
-        header_row = list(range(len(flattened_accuracies)))
-        data_row = flattened_accuracies
+        header_row = list(range(len(all_any_accuracies)))
+        data_row = all_any_accuracies
         accuracy_df = pd.DataFrame([data_row], columns=header_row)
-        accuracy_df.to_csv(f'outputs_new/{model_name}/results/order_to_example/{dataset_name}_accuracy_results.csv', index=False)
+        accuracy_df.to_csv(f'{output_folder}/{model_name}/results/{dataset_name}_accuracy_results.csv', index=False)
         
         # Create box plot
         plt.figure(figsize=(10, 6))
-        plt.boxplot(all_accuracies)
+        plt.boxplot(all_any_accuracies)
         plt.title(f'Accuracy Distribution for {dataset_name}')
         plt.ylabel('Accuracy')
-        plt.savefig(f'outputs_new/{model_name}/boxplots/{dataset_name}_order_to_example_accuracy_boxplot.png')
+        plt.savefig(f'{output_folder}/{model_name}/boxplots/{dataset_name}_accuracy_boxplot.png')
         plt.close()
 
         # Create frequency graph (histogram)
         plt.figure(figsize=(10, 6))
-        plt.hist(all_accuracies, bins=20, edgecolor='black')
+        plt.hist(all_any_accuracies, bins=20, edgecolor='black')
         plt.title(f'Accuracy Frequency for {dataset_name}')
         plt.xlabel('Accuracy')
         plt.ylabel('Frequency')
-        plt.savefig(f'outputs_new/{model_name}/frequency_graphs/{dataset_name}_order_to_example_accuracy_histogram.png')
+        plt.savefig(f'{output_folder}/{model_name}/frequency_graphs/{dataset_name}_accuracy_histogram.png')
         plt.close()
 
 for model_name in model_names:

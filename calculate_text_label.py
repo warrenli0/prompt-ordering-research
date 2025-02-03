@@ -165,6 +165,6 @@ def process_all_csv_files(base_directory, pattern_grouping=False):
             summary_file.write(f"Average of Grouped Standard Deviations: {avg_grouped_std}\n\n")
 
 if __name__ == "__main__":
-    base_directory = '/data/wyl003/prompt-ordering-research/outputs/text_label_separation/google'
+    base_directory = '/data/wyl003/prompt-ordering-research/outputs/text_label_separation/gpt2-xl'
     pattern_grouping = False
     process_all_csv_files(base_directory, pattern_grouping=pattern_grouping)

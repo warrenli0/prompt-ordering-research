@@ -1,8 +1,8 @@
 def create_prompt_gsm8k(example, in_context_examples):
-    prompt = "Given the answer to the following questions:"
+    prompt = "As an expert problem solver solve step by step the following mathematical questions."
     for ex in in_context_examples:
         prompt += f"Q: {ex['question']}\nA: {ex['answer']}\n\n"
-    prompt += "Answer to the following question:\n"
+    # prompt += "Answer to the following question, with the final answer at the end separated by ####:\n"
     prompt += f"Q: {example['question']}\nA: "
     return prompt
 
@@ -15,13 +15,23 @@ def create_prompt_bbh(example, in_context_examples):
     return prompt
 
 def create_prompt_mmlu(example, in_context_examples):
-    prompt = ""
-    if len(in_context_examples) > 0:
-        prompt += "Given are the answers for the following questions as an index from 0 to 3 for the given choices:\n"
-    for ex in in_context_examples:
-        prompt += f"Q: {ex['question']}\nChoices: {ex['choices']}\nA: {ex['answer']}\n\n"
-    prompt += "Answer this question as an index from 0 to 3 for the given answer choices:\n"
-    prompt += f"Q: {example['question']}\nChoices: {example['choices']}\nA: "
+    prompt = (
+        "You will be presented with multiple-choice questions. For each question, "
+        "select the best answer from the choices provided and respond with the index "
+        "number (from 0 to 3) that corresponds to your choice.\n\n"
+    )
+    if in_context_examples:
+        prompt += "Here are some example questions with their answers:\n\n"
+        for ex in in_context_examples:
+            prompt += f"Question: {ex['question']}\n"
+            for idx, choice in enumerate(ex['choices']):
+                prompt += f"{idx}: {choice}\n"
+            prompt += f"Answer: {ex['answer']}\n\n"
+    prompt += "Now, please answer the following question:\n\n"
+    prompt += f"Question: {example['question']}\n"
+    for idx, choice in enumerate(example['choices']):
+        prompt += f"{idx}: {choice}\n"
+    prompt += "Answer: "
     return prompt
 
 def create_prompt_agnews(example, in_context_examples):

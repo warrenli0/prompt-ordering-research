@@ -12,17 +12,20 @@ from utils import reorder_list, generate_random_orderings
 from collections import Counter
 
 # Configuration
-model_names = ["google/gemma-2b", "google/gemma-2-2b"]
+model_names = ["google/gemma-2b", "google/gemma-7b", "google/gemma-2-2b", "google/gemma-2-9b"]
 token = "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"
-dataset_list = ["nyt-topics", "nyt-locations", "sst2", "ag_news", "dbpedia"]
-output_folder = "outputs/majority_vote"
+dataset_list = ["gsm8k"]
+output_folder = "outputs/train_ordering"
 num_samples = 5000
-num_test_examples = 1000
-num_runs_per_set = 10  # We now evaluate each set 10 times
+num_test_examples = 500
+num_runs_per_set = 10  # Evaluate each set 10 times
 num_sets = 10  # Total of 10 different sets of in-context examples
 multiples = [2]  # 2 examples per label
 shuffle_seed = 42
 label_names = None
+
+# Configuration
+train_set_size = 100 # Added for the selection of 50 or 100 examples
 
 # Get the correct key for text/content
 def get_text_key(example):
@@ -60,9 +63,8 @@ def evaluate(model_name):
 
         # Load dataset
         train_set, test_set, num_classes, label_names = load_dataset_by_name(dataset_name, num_samples)
-        test_data = load_test_set(test_set, label_key, num_test_examples, dataset_name)
+        test_data = load_test_set(test_set, label_key, train_set_size, dataset_name)
 
-        # Prefilter, shuffle, and sample examples for each label
         total_examples_per_class = num_classes * 5  # Store 5x more examples than needed
         sampled_data = prefilter_and_sample_examples_multiple(train_set, num_classes, total_examples_per_class, dataset_name, seed=shuffle_seed)
 
@@ -78,35 +80,36 @@ def evaluate(model_name):
         all_accuracies = []
         ordering_accuracies = {}
         all_majority_accuracies = []
+        best_ordering_accuracies = []
+        best_orderings = []
 
         # Iterate over each multiple
         for multiple in multiples:
             num_incontext_examples = num_classes * multiple
 
-            # Generate 10 random permutations for all sets
-            # orderings = generate_random_orderings([0] * num_incontext_examples, num_orderings=num_runs_per_set)
-
-            # Generate the 10 random sets of in-context examples only once
+            # Generate the random sets of in-context examples only once
             in_context_sets = []
             for set_run in range(num_sets):
                 in_context_data = select_in_context_examples_multiple(sampled_data, num_classes, num_incontext_examples, dataset_name, seed=set_run + shuffle_seed)
                 in_context_data = sorted(in_context_data, key=lambda x: (x[label_key], get_text_key(x)))
                 in_context_sets.append(in_context_data)  # Store each set
 
-            # Generate 10 different sets of in-context examples
-            for set_run in tqdm(range(num_sets)):
-                prompt_labels = {i: [] for i in range(num_test_examples)}
+            # Generate different sets of in-context examples
+            for set_run in tqdm(range(num_sets), desc=f"Sets for {dataset_name} with train size {train_set_size}"):
+                prompt_labels = {i: [] for i in range(train_set_size)}
+                ordering_predictions = []  # Store predictions per ordering
+                ordering_permutations = []  # Store permutations
 
-                # Dynamically sample in-context examples for this set
+                # In-context examples for this set
                 in_context_data = in_context_sets[set_run]
 
                 # Sort by label and within each label alphabetically by text
                 in_context_data = sorted(in_context_data, key=lambda x: (x[label_key], get_text_key(x)))
 
-                # Generate 10 unique orderings per in-context example set
+                # Generate unique orderings per in-context example set
                 orderings = generate_random_orderings([0] * num_incontext_examples, num_orderings=num_runs_per_set)
 
-                # Evaluate this set using each of the 10 permutations
+                # Evaluate this set using each of the permutations
                 for perm_run in range(num_runs_per_set):
                     # Apply the permutation
                     permuted_in_context_data = reorder_list(in_context_data, orderings[perm_run])
@@ -117,53 +120,67 @@ def evaluate(model_name):
                     accuracy = 0
                     predicted_labels = []
                     if is_instruction_tuned:
-                        accuracy, _, _ = evaluate_it_model(llm, dataset_name, test_data, permuted_in_context_data, create_prompt_fn, label_names, results_path=results_path)
+                        accuracy, _, predicted_labels = evaluate_it_model(llm, dataset_name, test_data, permuted_in_context_data, create_prompt_fn, label_names, results_path=results_path)
                     else:
                         accuracy, _, predicted_labels = evaluate_model(llm, dataset_name, test_data, permuted_in_context_data, create_prompt_fn, label_names, results_path=results_path)
                     all_accuracies.append(accuracy)
+
+                    # Collect predictions for this permutation
+                    ordering_predictions.append(predicted_labels)
+                    ordering_permutations.append(orderings[perm_run])
 
                     for idx, label in enumerate(predicted_labels):
                         prompt_labels[idx].append(label)
 
                     # Store the results by set, then permutation
                     ordering_accuracies.setdefault(set_run, []).append(accuracy)
-                
+
                 # Calculate majority vote label for each prompt and evaluate accuracy
                 correct_majority_votes = 0
-                for idx in range(num_test_examples):
+                majority_labels = []
+                for idx in range(train_set_size):
                     majority_label = Counter(prompt_labels[idx]).most_common(1)[0][0]
+                    majority_labels.append(majority_label)
                     true_label = str(test_data[idx][label_key])
                     if majority_label == true_label:
                         correct_majority_votes += 1
-                
+
                 # Store accuracy for this set
-                majority_accuracy = correct_majority_votes / num_test_examples
+                majority_accuracy = correct_majority_votes / train_set_size
                 all_majority_accuracies.append(majority_accuracy)
 
-        # Output the CSV with 2 rows
-        header_row = list(range(len(all_majority_accuracies)))
-        data_row = all_majority_accuracies
-        accuracy_df = pd.DataFrame([data_row], columns=header_row)
-        accuracy_df.to_csv(f'{output_folder}/{model_name}/results/{dataset_name}_accuracy_results.csv', index=False)
-        
-        # Create box plot
-        plt.figure(figsize=(10, 6))
-        plt.boxplot(all_majority_accuracies)
-        plt.title(f'Accuracy Distribution for {dataset_name}')
-        plt.ylabel('Accuracy')
-        plt.savefig(f'{output_folder}/{model_name}/boxplots/{dataset_name}_accuracy_boxplot.png')
-        plt.close()
+                # Compare each ordering's predictions with the majority vote predictions
+                best_alignment = -1
+                best_ordering_index = -1
+                for ordering_index, predictions in enumerate(ordering_predictions):
+                    alignment_count = sum([1 for idx in range(train_set_size) if predictions[idx] == majority_labels[idx]])
+                    if alignment_count > best_alignment:
+                        best_alignment = alignment_count
+                        best_ordering_index = ordering_index
 
-        # Create frequency graph (histogram)
-        plt.figure(figsize=(10, 6))
-        plt.hist(all_majority_accuracies, bins=20, edgecolor='black')
-        plt.title(f'Accuracy Frequency for {dataset_name}')
-        plt.xlabel('Accuracy')
-        plt.ylabel('Frequency')
-        plt.savefig(f'{output_folder}/{model_name}/frequency_graphs/{dataset_name}_accuracy_histogram.png')
-        plt.close()
+                # Retrieve the accuracy and permutation of the best ordering
+                best_ordering_accuracy = ordering_accuracies[set_run][best_ordering_index]
+                best_ordering_accuracies.append(best_ordering_accuracy)
+                best_orderings.append(ordering_permutations[best_ordering_index])
+
+            # Final evaluation with the top 10 orderings
+            final_accuracies = []
+            test_data = load_test_set(test_set, label_key, num_test_examples, dataset_name, seed=68)
+            for set_run in range(num_sets):
+                permuted_in_context_data = reorder_list(in_context_sets[set_run], best_orderings[set_run])
+                accuracy, _, _ = evaluate_model(llm, dataset_name, test_data, permuted_in_context_data, create_prompt_fn, label_names)
+                final_accuracies.append({
+                    'Set': set_run,
+                    'Best Ordering Train Accuracy': best_ordering_accuracies[set_run],
+                    'Final Evaluation Accuracy': accuracy,
+                    'Ordering': best_orderings[set_run]
+                })
+
+            # Save final results
+            final_accuracies_df = pd.DataFrame(final_accuracies)
+            final_accuracies_df.to_csv(f'{output_folder}/{model_name}/results/{dataset_name}_final_best_orderings_evaluation.csv', index=False)
 
 for model_name in model_names:
     evaluate(model_name)
 
-print("Experiments completed for all datasets.")
+print("Experiments completed for all datasets and training set sizes.")

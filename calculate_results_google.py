@@ -94,6 +94,9 @@ def process_all_csv_files(base_directory, pattern_grouping=False):
         
         for subdir in subdirectories:
             model_name = os.path.basename(subdir)
+            if model_name[-2:] == 'it':
+                print(model_name)
+                continue
             summary_file.write(f"Model: {model_name}\n\n")
             results_dir = os.path.join(subdir, 'results')
             if not os.path.exists(results_dir):

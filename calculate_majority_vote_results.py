@@ -50,6 +50,16 @@ def calculate_averages_across_datasets(dataset_summary):
             'std': None,
         }
 
+def summarize_dataset_over_models(datasets_overall_stats):
+    dataset_overall_summary = {}
+    for dataset, stats in datasets_overall_stats.items():
+        if stats['mean']:
+            dataset_overall_summary[dataset] = {
+                'mean': sum(stats['mean']) / len(stats['mean']),
+                'std': sum(stats['std']) / len(stats['std']),
+            }
+    return dataset_overall_summary
+
 def process_all_csv_files(base_directory):
     subdirectories = [os.path.join(base_directory, d) for d in os.listdir(base_directory) 
                       if os.path.isdir(os.path.join(base_directory, d))]
@@ -57,7 +67,8 @@ def process_all_csv_files(base_directory):
     summary_file_path = os.path.join(base_directory, 'summary_results.txt')
     overall_means = []
     overall_stds = []
-    
+    datasets_overall_stats = defaultdict(lambda: {'mean': [], 'std': []})
+
     with open(summary_file_path, 'w') as summary_file:
         summary_file.write("Summary of results grouped by model and dataset:\n\n")
         
@@ -77,6 +88,10 @@ def process_all_csv_files(base_directory):
                 summary_file.write(f"    Dataset: {dataset}\n")
                 summary_file.write(f"      Mean: {stats['mean']}\n")
                 summary_file.write(f"      Std Dev: {stats['std']}\n")
+
+                # Collect dataset stats across models
+                datasets_overall_stats[dataset]['mean'].append(stats['mean'])
+                datasets_overall_stats[dataset]['std'].append(stats['std'])
                 
             # Calculate model-level averages across datasets
             model_averages = calculate_averages_across_datasets(dataset_summary)
@@ -90,6 +105,14 @@ def process_all_csv_files(base_directory):
             
             summary_file.write("--- END MODEL ---\n\n")
 
+        # After processing all models, output the dataset grouped results
+        summary_file.write("Summary of results grouped by dataset:\n\n")
+        dataset_overall_summary = summarize_dataset_over_models(datasets_overall_stats)
+        for dataset, stats in dataset_overall_summary.items():
+            summary_file.write(f"Dataset: {dataset}\n")
+            summary_file.write(f"  Mean Across Models: {stats['mean']}\n")
+            summary_file.write(f"  Std Dev Across Models: {stats['std']}\n\n")
+        
         summary_file.write("Overall Average Statistics Across All Models:\n\n")
         if overall_means:
             avg_mean = sum(overall_means) / len(overall_means)
