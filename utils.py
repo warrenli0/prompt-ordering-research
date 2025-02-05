@@ -6,7 +6,10 @@ def extract_answer(generated_text):
     match = re.search(r'(\d+)', generated_text)
     return match.group(1) if match else None
 
-def generate_random_orderings(data, num_orderings=10):
+def generate_random_orderings(data, num_orderings=10, seed=None):
+    if seed is not None:
+        random.seed(seed)
+
     orderings = []
     for _ in range(num_orderings):
         order = list(range(len(data)))
