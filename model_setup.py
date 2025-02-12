@@ -24,10 +24,12 @@ def setup_model(model_name, token):
     # You might want to use a user desired value if it’s lower than the derived one.
     # For example, if you wish to use up to 128000 tokens, but the model only supports less:
     desired_max_model_len = min(128000, derived_max_model_len)
+    if model_name in ["google/gemma-2-2b", "google/gemma-2-9b", "google/gemma-2-2b-it", "google/gemma-2-9b-it"]:
+        desired_max_model_len = None
     print(f"Using max_model_len = {desired_max_model_len} for {model_name}")
     
     llm = LLM(model=model_name, 
-              gpu_memory_utilization=0.95, 
+              gpu_memory_utilization=0.8, 
               max_model_len=desired_max_model_len,
               tensor_parallel_size=1,
               dtype="bfloat16",
